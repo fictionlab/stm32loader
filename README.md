@@ -42,13 +42,15 @@ Usage
 Example (CORE2 + Raspberry Pi 3B)
 -------
 
-Create environment variable:
+On RPi create environment variable (permanent):
 
+Execute only once:
 ```
-bash -c "echo 'export=STM32LOADER=rpi' >> ~/.profile"
+bash -c "echo 'export=STM32LOADER_SBC=rpi' >> ~/.profile"
 ```
+
 To perform firmware update run:
 
 ```
-stm32loader -p /dev/serial0 -c -R -w firmware.bin
+stm32loader -p /dev/serial0 -c -R -w -v firmware.bin
 ```
