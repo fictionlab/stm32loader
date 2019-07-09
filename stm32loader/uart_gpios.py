@@ -7,7 +7,7 @@
 # the terms of the GNU General Public License as published by the Free
 # Software Foundation; either version 3, or (at your option) any later
 # version.
-#
+# 
 # stm32loader is distributed in the hope that it will be useful, but
 # WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 # or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
@@ -24,25 +24,24 @@ Offer support for toggling RESET and BOOT0.
 """
 
 # not naming this file itself 'serial', becase that name-clashes in Python 2
+from __future__ import print_function
 import serial
+import sys
+import RPi.GPIO as GPIO
 
 
-class SerialConnection:
+class SerialConnectionRpi:
     """Wrap a serial.Serial connection and toggle reset and boot0."""
 
     # pylint: disable=too-many-instance-attributes
 
-    def __init__(self, serial_port, baud_rate=115200, parity="E"):
-        """Construct a SerialConnection (not yet connected)."""
+    def __init__(self, serial_port, baud_rate=115200, parity="E", gpio_reset_pin=int(12), gpio_boot0_pin=int(11)):
+        """Construct a SerialConnectionRpi (not yet connected)."""
         self.serial_port = serial_port
         self.baud_rate = baud_rate
         self.parity = parity
-
-        # advertise reset / boot0 toggle capability
         self.can_toggle_reset = True
         self.can_toggle_boot0 = True
-
-        self.swap_rts_dtr = False
         self.reset_active_high = False
         self.boot0_active_low = False
 
@@ -53,6 +52,13 @@ class SerialConnection:
 
         # assigned using setter methods
         self.timeout = 5
+
+        self._gpio_reset_pin = gpio_reset_pin
+        self._gpio_boot0_pin = gpio_boot0_pin
+        self._gpio_reset_init = False
+        self._gpio_boot0_init = False
+        GPIO.setmode(GPIO.BOARD)
+        GPIO.setwarnings(False)
 
     @property
     def timeout(self):
@@ -75,11 +81,13 @@ class SerialConnection:
             parity=self.parity,
             stopbits=1,
             # don't enable software flow control
-            xonxoff=0,
+            xonxoff=False,
             # don't enable RTS/CTS flow control
-            rtscts=0,
+            rtscts=False,
+            # 
+            dsrdtr=False,
             # set a timeout value, None for waiting forever
-            timeout=self._timeout,
+            timeout=self.timeout,
         )
 
     def write(self, *args, **kwargs):
@@ -92,28 +100,26 @@ class SerialConnection:
 
     def enable_reset(self, enable=True):
         """Enable or disable the reset IO line."""
-        # reset on the STM32 is active low (0 Volt puts the MCU in reset)
-        # but the RS-232 DTR signal is active low by itself, so it
-        # inverts this (writing a logical 1 outputs a low voltage, i.e.
-        # enables reset)
-        level = int(enable)
-        if self.reset_active_high:
-            level = 1 - level
+        # by default reset is active low
+        if not self._gpio_reset_init:
+            GPIO.setup(self._gpio_reset_pin, GPIO.OUT)
+            self._gpio_reset_init = True
 
-        if self.swap_rts_dtr:
-            self.serial_connection.setRTS(level)
+        if self.reset_active_high:
+        	level = (GPIO.HIGH if enable else GPIO.LOW)  # active HIGH
         else:
-            self.serial_connection.setDTR(level)
+        	level = (GPIO.LOW if enable else GPIO.HIGH)  # active LOW
+        GPIO.output(self._gpio_reset_pin, level)
 
     def enable_boot0(self, enable=True):
         """Enable or disable the boot0 IO line."""
-        level = int(enable)
+        # by default boot0 is active high
+        if not self._gpio_boot0_init:
+            GPIO.setup(self._gpio_boot0_pin, GPIO.OUT)
+            self._gpio_boot0_init = True
 
-        # by default, this is active high
-        if not self.boot0_active_low:
-            level = 1 - level
-
-        if self.swap_rts_dtr:
-            self.serial_connection.setDTR(level)
+        if self.boot0_active_low:
+        	level = (GPIO.LOW if enable else GPIO.HIGH)  # active LOW
         else:
-            self.serial_connection.setRTS(level)
+        	level = (GPIO.HIGH if enable else GPIO.LOW)  # active HIGH
+        GPIO.output(self._gpio_boot0_pin, level)

@@ -60,7 +60,6 @@ CHIP_IDS = {
     0x801: "Wiznet W7500",
 }
 
-
 class Stm32LoaderError(Exception):
     """Generic exception type for errors occurring in stm32loader."""
 
@@ -79,69 +78,6 @@ class DataLengthError(Stm32LoaderError, ValueError):
 
 class DataMismatchError(Stm32LoaderError):
     """Exception: data comparison failed."""
-
-
-class ShowProgress:
-    """
-    Show progress through a progress bar, as a context manager.
-
-    Return the progress bar object on context enter, allowing the
-    caller to to call next().
-
-    Allow to supply the desired progress bar as None, to disable
-    progress bar output.
-    """
-
-    class _NoProgressBar:
-        """
-        Stub to replace a real progress.bar.Bar.
-
-        Use this if you don't want progress bar output, or if
-        there's an ImportError of progress module.
-        """
-
-        def next(self):  # noqa
-            """Do nothing; be compatible to progress.bar.Bar."""
-
-        def finish(self):
-            """Do nothing; be compatible to progress.bar.Bar."""
-
-    def __init__(self, progress_bar_type):
-        """
-        Construct the context manager object.
-
-        :param progress_bar_type type: Type of progress bar to use.
-           Set to None if you don't want progress bar output.
-        """
-        self.progress_bar_type = progress_bar_type
-        self.progress_bar = None
-
-    def __call__(self, message, maximum):
-        """
-        Return a context manager for a progress bar.
-
-        :param str message: Message to show next to the progress bar.
-        :param int maximum: Maximum value of the progress bar (value at 100%).
-          E.g. 256.
-        :return ShowProgress: Context manager object.
-        """
-        if not self.progress_bar_type:
-            self.progress_bar = self._NoProgressBar()
-        else:
-            self.progress_bar = self.progress_bar_type(
-                message, max=maximum, suffix="%(index)d/%(max)d"
-            )
-
-        return self
-
-    def __enter__(self):
-        """Enter context: return progress bar to allow calling next()."""
-        return self.progress_bar
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        """Exit context: clean up by finish()ing the progress bar."""
-        self.progress_bar.finish()
-
 
 class Stm32Bootloader:
     """Talk to the STM32 native bootloader."""
@@ -224,7 +160,7 @@ class Stm32Bootloader:
     DATA_TRANSFER_SIZE = 256  # bytes
     FLASH_PAGE_SIZE = 1024  # bytes
 
-    def __init__(self, connection, verbosity=5, show_progress=None):
+    def __init__(self, connection, verbosity=5, show_progress=False):
         """
         Construct the Stm32Bootloader object.
 
@@ -246,7 +182,7 @@ class Stm32Bootloader:
         self._toggle_reset = getattr(connection, "can_toggle_reset", False)
         self._toggle_boot0 = getattr(connection, "can_toggle_boot0", False)
         self.verbosity = verbosity
-        self.show_progress = show_progress or ShowProgress(None)
+        self.show_progress = show_progress
         self.extended_erase = False
 
     def write(self, *data):
@@ -536,19 +472,33 @@ class Stm32Bootloader:
         data = bytearray()
         chunk_count = int(math.ceil(length / float(self.DATA_TRANSFER_SIZE)))
         self.debug(5, "Read %d chunks at address 0x%X..." % (chunk_count, address))
-        with self.show_progress("Reading", maximum=chunk_count) as progress_bar:
-            while length:
-                read_length = min(length, self.DATA_TRANSFER_SIZE)
-                self.debug(
-                    10,
-                    "Read %(len)d bytes at 0x%(address)X"
-                    % {"address": address, "len": read_length},
-                )
-                data = data + self.read_memory(address, read_length)
-                progress_bar.next()
-                length = length - read_length
-                address = address + read_length
+        #with self.show_progress("Reading", maximum=chunk_count) as progress_bar:
+        progress=0
+        while length:
+            read_length = min(length, self.DATA_TRANSFER_SIZE)
+            self.debug(
+                10,
+                "Read %(len)d bytes at 0x%(address)X"
+                % {"address": address, "len": read_length},
+            )
+            data = data + self.read_memory(address, read_length)
+            progress=progress+1
+            if self.show_progress:
+                self.update_progress(progress,chunk_count,"address:" + hex(address))
+            length = length - read_length
+            address = address + read_length
+        print("\nReading finished!")
         return data
+
+    def update_progress(self, count, total, suffix=''):
+        bar_len = 20
+        filled_len = int(round(bar_len * count / float(total)))
+
+        percents = round(100.0 * count / float(total), 1)
+        bar = '=' * filled_len + '-' * (bar_len - filled_len)
+
+        sys.stdout.write('[%s] %s%s %s\r' % (bar, percents, '%', suffix))
+        sys.stdout.flush()
 
     def write_memory_data(self, address, data):
         """
@@ -560,20 +510,23 @@ class Stm32Bootloader:
         chunk_count = int(math.ceil(length / float(self.DATA_TRANSFER_SIZE)))
         offset = 0
         self.debug(5, "Write %d chunks at address 0x%X..." % (chunk_count, address))
-
-        with self.show_progress("Writing", maximum=chunk_count) as progress_bar:
-            while length:
-                write_length = min(length, self.DATA_TRANSFER_SIZE)
-                self.debug(
-                    10,
-                    "Write %(len)d bytes at 0x%(address)X"
-                    % {"address": address, "len": write_length},
-                )
-                self.write_memory(address, data[offset : offset + write_length])
-                progress_bar.next()
-                length -= write_length
-                offset += write_length
-                address += write_length
+        progress=0
+        # with self.show_progress("Writing", maximum=chunk_count) as progress_bar:
+        while length:
+            write_length = min(length, self.DATA_TRANSFER_SIZE)
+            self.debug(
+                10,
+                "Write %(len)d bytes at 0x%(address)X"
+                % {"address": address, "len": write_length},
+            )
+            progress=progress+1
+            if self.show_progress:
+                self.update_progress(progress,chunk_count,"address:" + hex(address))
+            self.write_memory(address, data[offset : offset + write_length])
+            length -= write_length
+            offset += write_length
+            address += write_length
+        print("\nWriting finished!")
 
     @staticmethod
     def verify_data(read_data, reference_data):

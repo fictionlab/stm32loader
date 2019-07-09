@@ -30,6 +30,13 @@ import sys
 from . import bootloader
 from .uart import SerialConnection
 
+sbc_type = os.getenv('STM32LOADER_SBC',None)
+
+if sbc_type == 'rpi' or sbc_type == 'tinker':
+    from .uart_gpios import SerialConnectionRpi
+elif sbc_type == 'upboard':
+    pass
+
 DEFAULT_VERBOSITY = 5
 
 
@@ -45,10 +52,11 @@ class Stm32Loader:
         "-w": "write",
         "-v": "verify",
         "-r": "read",
+	    "-c": "core2_mode",
         "-s": "swap_rts_dtr",
         "-n": "hide_progress_bar",
         "-R": "reset_active_high",
-        "-B": "boot0_active_high",
+        "-B": "boot0_active_low",
     }
 
     INTEGER_OPTIONS = {"-b": "baud", "-a": "address", "-g": "go_address", "-l": "length"}
@@ -62,6 +70,7 @@ class Stm32Loader:
             "parity": self.PARITY["even"],
             "family": os.environ.get("STM32LOADER_FAMILY"),
             "address": 0x08000000,
+	        "core2_mode": False,
             "erase": False,
             "unprotect": False,
             "write": False,
@@ -70,7 +79,7 @@ class Stm32Loader:
             "go_address": -1,
             "swap_rts_dtr": False,
             "reset_active_high": False,
-            "boot0_active_high": False,
+            "boot0_active_low": False,
             "hide_progress_bar": False,
             "data_file": None,
         }
@@ -85,7 +94,7 @@ class Stm32Loader:
         """Parse the list of command-line arguments."""
         try:
             # parse command-line arguments using getopt
-            options, arguments = getopt.getopt(arguments, "hqVeuwvrsnRBP:p:b:a:l:g:f:", ["help"])
+            options, arguments = getopt.getopt(arguments, "hqVeuwvrcsnRBP:p:b:a:l:g:f:", ["help"])
         except getopt.GetoptError as err:
             # print help information and exit:
             # this prints something like "option -a not recognized"
@@ -109,14 +118,37 @@ class Stm32Loader:
 
     def connect(self):
         """Connect to the RS-232 serial port."""
-        serial_connection = SerialConnection(
-            self.configuration["port"], self.configuration["baud"], self.configuration["parity"]
-        )
+        if self.configuration["core2_mode"]: 
+            if sbc_type == None:
+                self.debug(5,"You need to define environment variable STM32LOADER_SBC to use this option!")
+                exit(1)
+            serial_connection = SerialConnectionRpi(
+                self.configuration["port"], 
+                self.configuration["baud"], 
+                self.configuration["parity"]
+            )
+        else:
+            serial_connection = SerialConnection(
+                self.configuration["port"], 
+                self.configuration["baud"], 
+                self.configuration["parity"]
+            )            
         self.debug(
             10,
             "Open port %(port)s, baud %(baud)d"
             % {"port": self.configuration["port"], "baud": self.configuration["baud"]},
         )
+        if self.configuration["core2_mode"]:
+            serial_connection.swap_rts_dtr = self.configuration["swap_rts_dtr"]
+        serial_connection.reset_active_high = self.configuration["reset_active_high"]
+        serial_connection.boot0_active_low = self.configuration["boot0_active_low"]
+
+        show_progress = not self.configuration["hide_progress_bar"]
+
+        self.stm32 = bootloader.Stm32Bootloader(
+            serial_connection, verbosity=self.verbosity, show_progress=show_progress
+        )
+
         try:
             serial_connection.connect()
         except IOError as e:
@@ -131,16 +163,6 @@ class Stm32Loader:
                 file=sys.stderr,
             )
             exit(1)
-
-        serial_connection.swap_rts_dtr = self.configuration["swap_rts_dtr"]
-        serial_connection.reset_active_high = self.configuration["reset_active_high"]
-        serial_connection.boot0_active_high = self.configuration["boot0_active_high"]
-
-        show_progress = self._get_progress_bar(self.configuration["hide_progress_bar"])
-
-        self.stm32 = bootloader.Stm32Bootloader(
-            serial_connection, verbosity=self.verbosity, show_progress=show_progress
-        )
 
         try:
             self.stm32.reset_from_system_memory()
@@ -227,8 +249,9 @@ class Stm32Loader:
     -V          Verbose mode
 
     -s          Swap RTS and DTR: use RTS for reset and DTR for boot0
+    -c		    CORE2 programming using SBC GPIO pins
     -R          Make reset active high
-    -B          Make boot0 active high
+    -B          Make boot0 active low
     -u          Readout unprotect
     -n          No progress: don't show progress bar
     -P parity   Parity: "even" for STM32 (default), "none" for BlueNRG
@@ -287,24 +310,6 @@ class Stm32Loader:
                 self.configuration[self.BOOLEAN_FLAG_OPTIONS[option]] = True
             else:
                 assert False, "unhandled option %s" % option
-
-    @staticmethod
-    def _get_progress_bar(hide_progress_bar=False):
-        if hide_progress_bar:
-            return None
-        desired_progress_bar = None
-        try:
-            from progress.bar import ChargingBar as desired_progress_bar
-        except ImportError:
-            # progress module is a package dependency,
-            # but not strictly required
-            pass
-
-        if not desired_progress_bar:
-            return None
-
-        return bootloader.ShowProgress(desired_progress_bar)
-
 
 def main(*args, **kwargs):
     """
