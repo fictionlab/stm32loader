@@ -30,7 +30,7 @@ Usage
     -V          Verbose mode
 
     -s          Swap RTS and DTR: use RTS for reset and DTR for boot0
-    -c          Use CORE2 mode
+    -c          sbc used to update CORE2
     -R          Make reset active high
     -B          Make boot0 active low
     -u          Readout unprotect
@@ -38,19 +38,10 @@ Usage
     -P parity   Parity: "even" for STM32 (default), "none" for BlueNRG
 ```
 
-
-Example (CORE2 + Raspberry Pi 3B)
 -------
 
-On RPi create environment variable (permanent):
-
-Execute only once:
-```
-bash -c "echo 'export=STM32LOADER_SBC=rpi' >> ~/.profile"
-```
-
-To perform firmware update run:
+To perform firmware update for your device run:
 
 ```
-stm32loader -p /dev/serial0 -c -R -w -v firmware.bin
+stm32loader -c <sbc_type> -e -w -v firmware.bin
 ```

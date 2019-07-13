@@ -27,10 +27,10 @@ Offer support for toggling RESET and BOOT0.
 from __future__ import print_function
 import serial
 import sys
-import RPi.GPIO as GPIO
 
-
-class SerialConnectionRpi:
+# fixes the problem with setters method
+# https://stackoverflow.com/questions/598077/why-does-foo-setter-in-python-not-work-for-me
+class SerialConnectionRpi(object):
     """Wrap a serial.Serial connection and toggle reset and boot0."""
 
     # pylint: disable=too-many-instance-attributes
@@ -48,17 +48,20 @@ class SerialConnectionRpi:
         # call connect() to establish connection
         self.serial_connection = None
 
-        self._timeout = None
-
-        # assigned using setter methods
-        self.timeout = 5
-
+        self._timeout = 5
         self._gpio_reset_pin = gpio_reset_pin
         self._gpio_boot0_pin = gpio_boot0_pin
         self._gpio_reset_init = False
         self._gpio_boot0_init = False
-        GPIO.setmode(GPIO.BOARD)
-        GPIO.setwarnings(False)
+
+        try:
+            import RPi.GPIO as GPIO
+        except ImportError as e:
+            print("Couldn't import RPi.GPIO. Check if the RPi.GPIO is installed on your system")
+            exit(1)
+        self._gpio_instance = GPIO
+        self._gpio_instance.setmode(self._gpio_instance.BOARD)
+        self._gpio_instance.setwarnings(False)
 
     @property
     def timeout(self):
@@ -84,10 +87,8 @@ class SerialConnectionRpi:
             xonxoff=False,
             # don't enable RTS/CTS flow control
             rtscts=False,
-            # 
-            dsrdtr=False,
             # set a timeout value, None for waiting forever
-            timeout=self.timeout,
+            timeout=self._timeout
         )
 
     def write(self, *args, **kwargs):
@@ -102,24 +103,24 @@ class SerialConnectionRpi:
         """Enable or disable the reset IO line."""
         # by default reset is active low
         if not self._gpio_reset_init:
-            GPIO.setup(self._gpio_reset_pin, GPIO.OUT)
+            self._gpio_instance.setup(self._gpio_reset_pin, self._gpio_instance.OUT)
             self._gpio_reset_init = True
 
         if self.reset_active_high:
-        	level = (GPIO.HIGH if enable else GPIO.LOW)  # active HIGH
+        	level = (self._gpio_instance.HIGH if enable else self._gpio_instance.LOW)  # active HIGH
         else:
-        	level = (GPIO.LOW if enable else GPIO.HIGH)  # active LOW
-        GPIO.output(self._gpio_reset_pin, level)
+        	level = (self._gpio_instance.LOW if enable else self._gpio_instance.HIGH)  # active LOW
+        self._gpio_instance.output(self._gpio_reset_pin, level)
 
     def enable_boot0(self, enable=True):
         """Enable or disable the boot0 IO line."""
         # by default boot0 is active high
         if not self._gpio_boot0_init:
-            GPIO.setup(self._gpio_boot0_pin, GPIO.OUT)
+            self._gpio_instance.setup(self._gpio_boot0_pin, self._gpio_instance.OUT)
             self._gpio_boot0_init = True
 
         if self.boot0_active_low:
-        	level = (GPIO.LOW if enable else GPIO.HIGH)  # active LOW
+        	level = (self._gpio_instance.LOW if enable else self._gpio_instance.HIGH)  # active LOW
         else:
-        	level = (GPIO.HIGH if enable else GPIO.LOW)  # active HIGH
-        GPIO.output(self._gpio_boot0_pin, level)
+        	level = (self._gpio_instance.HIGH if enable else self._gpio_instance.LOW)  # active HIGH
+        self._gpio_instance.output(self._gpio_boot0_pin, level)

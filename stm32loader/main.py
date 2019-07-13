@@ -30,14 +30,14 @@ import sys
 from . import bootloader
 from .uart import SerialConnection
 
-sbc_type = os.getenv('STM32LOADER_SBC',None)
+# sbc_type = os.getenv('STM32LOADER_SBC',None)
 
-if sbc_type == 'rpi' or sbc_type == 'tinker':
-    from .uart_gpios import SerialConnectionRpi
-elif sbc_type == 'upboard':
-    pass
+# if sbc_type == 'rpi' or sbc_type == 'tinker':
+#     from .uart_gpios import SerialConnectionRpi
+# elif sbc_type == 'upboard':
+#     pass
 
-DEFAULT_VERBOSITY = 5
+DEFAULT_VERBOSITY = 10
 
 
 class Stm32Loader:
@@ -52,12 +52,13 @@ class Stm32Loader:
         "-w": "write",
         "-v": "verify",
         "-r": "read",
-	    "-c": "core2_mode",
         "-s": "swap_rts_dtr",
         "-n": "hide_progress_bar",
         "-R": "reset_active_high",
         "-B": "boot0_active_low",
     }
+
+    SBC_TYPES = ["tinker", "rpi", "upboard"]
 
     INTEGER_OPTIONS = {"-b": "baud", "-a": "address", "-g": "go_address", "-l": "length"}
 
@@ -70,7 +71,7 @@ class Stm32Loader:
             "parity": self.PARITY["even"],
             "family": os.environ.get("STM32LOADER_FAMILY"),
             "address": 0x08000000,
-	        "core2_mode": False,
+	        "core2_mode": "none",
             "erase": False,
             "unprotect": False,
             "write": False,
@@ -94,7 +95,7 @@ class Stm32Loader:
         """Parse the list of command-line arguments."""
         try:
             # parse command-line arguments using getopt
-            options, arguments = getopt.getopt(arguments, "hqVeuwvrcsnRBP:p:b:a:l:g:f:", ["help"])
+            options, arguments = getopt.getopt(arguments, "hqVeuwvrsnRBP:p:b:a:l:g:f:c:", ["help"])
         except getopt.GetoptError as err:
             # print help information and exit:
             # this prints something like "option -a not recognized"
@@ -118,15 +119,22 @@ class Stm32Loader:
 
     def connect(self):
         """Connect to the RS-232 serial port."""
-        if self.configuration["core2_mode"]: 
-            if sbc_type == None:
-                self.debug(5,"You need to define environment variable STM32LOADER_SBC to use this option!")
-                exit(1)
-            serial_connection = SerialConnectionRpi(
-                self.configuration["port"], 
-                self.configuration["baud"], 
-                self.configuration["parity"]
-            )
+        if self.configuration["core2_mode"] != "none":
+            if self.configuration["core2_mode"] == "rpi" or self.configuration["core2_mode"] == "tinker":
+                try:
+                    from .uart_gpios import SerialConnectionRpi
+                except ImportError as e:
+                    print("There was an error during importing SerialConnectionRpi:" + e.message)
+                    exit(1)
+                else:
+                    serial_connection = SerialConnectionRpi(
+                        self.configuration["port"], 
+                        self.configuration["baud"], 
+                        self.configuration["parity"]
+                    )
+            elif self.configuration["core2_mode"] == "upboard":
+                print("Not currently supported")
+                exit(0)
         else:
             serial_connection = SerialConnection(
                 self.configuration["port"], 
@@ -138,8 +146,8 @@ class Stm32Loader:
             "Open port %(port)s, baud %(baud)d"
             % {"port": self.configuration["port"], "baud": self.configuration["baud"]},
         )
-        if self.configuration["core2_mode"]:
-            serial_connection.swap_rts_dtr = self.configuration["swap_rts_dtr"]
+        
+        serial_connection.swap_rts_dtr = self.configuration["swap_rts_dtr"]
         serial_connection.reset_active_high = self.configuration["reset_active_high"]
         serial_connection.boot0_active_low = self.configuration["boot0_active_low"]
 
@@ -193,12 +201,12 @@ class Stm32Loader:
         if self.configuration["erase"]:
             try:
                 self.stm32.erase_memory()
-            except bootloader.CommandError:
+            except bootloader.CommandError as e:
                 # may be caused by readout protection
                 self.debug(
                     0,
                     "Erase failed -- probably due to readout protection\n"
-                    "consider using the -u (unprotect) option.",
+                    "consider using the -u (unprotect) option." + e.message 
                 )
                 self.stm32.reset_from_flash()
                 sys.exit(1)
@@ -249,7 +257,7 @@ class Stm32Loader:
     -V          Verbose mode
 
     -s          Swap RTS and DTR: use RTS for reset and DTR for boot0
-    -c		    CORE2 programming using SBC GPIO pins
+    -c		    sbc used to update CORE2 (rpi | tinker | upboard)
     -R          Make reset active high
     -B          Make boot0 active low
     -u          Readout unprotect
@@ -290,6 +298,18 @@ class Stm32Loader:
         for option, value in options:
             if option == "-V":
                 self.verbosity = 10
+            elif option == "-c":
+                if value not in self.SBC_TYPES:
+                    print("Incorrect SBC type!")
+                    exit(1)
+                self.configuration["core2_mode"] = value
+                if value == 'rpi':
+                    self.configuration["port"] = '/dev/serial0'                
+                elif value == 'tinker':
+                    self.configuration["port"] = '/dev/ttyS1'
+                elif value == 'upboard':
+                    self.configuration["port"] = '/dev/ttyS4'
+                self.configuration["reset_active_high"] = True
             elif option == "-q":
                 self.verbosity = 0
             elif option in ["-h", "--help"]:

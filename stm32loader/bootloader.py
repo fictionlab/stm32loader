@@ -416,7 +416,7 @@ class Stm32Bootloader:
             self.write(page_count_bytes, page_bytes, checksum)
         else:
             # global mass erase: n=0xffff (page count) + checksum
-            # TO DO: support 0xfffe bank 1 erase / 0xfffe bank 2 erase
+            # TO DO: support 0xfffe bank 1 erase / 0xfffD bank 2 erase
             self.write(b"\xff\xff\x00")
 
         previous_timeout_value = self.connection.timeout
