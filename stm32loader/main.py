@@ -37,7 +37,7 @@ from .uart import SerialConnection
 # elif sbc_type == 'upboard':
 #     pass
 
-DEFAULT_VERBOSITY = 10
+DEFAULT_VERBOSITY = 5
 
 
 class Stm32Loader:
@@ -71,7 +71,7 @@ class Stm32Loader:
             "parity": self.PARITY["even"],
             "family": os.environ.get("STM32LOADER_FAMILY"),
             "address": 0x08000000,
-	        "core2_mode": "none",
+	    "core2_mode": "none",
             "erase": False,
             "unprotect": False,
             "write": False,
@@ -283,15 +283,26 @@ class Stm32Loader:
         if not family:
             self.debug(0, "Supply -f [family] to see flash size and device UID, e.g: -f F1")
         else:
-            try:
-                device_uid = self.stm32.get_uid(family)
-                flash_size = self.stm32.get_flash_size(family)
-            except bootloader.CommandError as e:
-                self.debug(0,"Something was wrong with reading chip family data: " + e.message)
+            # special fix for F4 devices
+            if family == "F4":
+                try:
+                    device_uid, flash_size = self.stm32.get_flash_size_and_uid_f4()
+                except bootloader.CommandError as e:
+                    self.debug(0,"Something was wrong with reading chip family data: " + e.message)
+                else:
+                    device_uid_string = self.stm32.format_uid(device_uid)
+                    self.debug(0, "Device UID: %s" % device_uid_string)
+                    self.debug(0, "Flash size: %d KiB" % flash_size)
             else:
-                device_uid_string = self.stm32.format_uid(device_uid)
-                self.debug(0, "Device UID: %s" % device_uid_string)
-                self.debug(0, "Flash size: %d KiB" % flash_size)
+                try:
+                    flash_size = self.stm32.get_flash_size(family)
+                    device_uid = self.stm32.get_uid(family)
+                except bootloader.CommandError as e:
+                    self.debug(0,"Something was wrong with reading chip family data: " + e.message)
+                else:
+                    device_uid_string = self.stm32.format_uid(device_uid)
+                    self.debug(0, "Device UID: %s" % device_uid_string)
+                    self.debug(0, "Flash size: %d KiB" % flash_size)
 
     def _parse_option_flags(self, options):
         # pylint: disable=eval-used

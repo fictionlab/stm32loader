@@ -271,7 +271,16 @@ class Stm32Bootloader:
         flash_size_bytes = self.read_memory(flash_size_address, 2)
         flash_size = flash_size_bytes[0] + (flash_size_bytes[1]<<8)
         return flash_size
-
+    
+    def get_flash_size_and_uid_f4(self):
+        data_start_addr = 0x1FFF7A00
+        flash_size_lsb_addr = 0x22
+        uid_lsb_addr = 0x10
+        data = self.read_memory(data_start_addr, self.DATA_TRANSFER_SIZE)
+        device_uid = data[uid_lsb_addr:uid_lsb_addr+12] 
+        flash_size = data[flash_size_lsb_addr] + data[flash_size_lsb_addr+1]<<8
+        return device_uid, flash_size
+        
     def get_uid(self, device_id):
         """
         Send the 'Get UID' command and return the device UID.
@@ -580,6 +589,8 @@ class Stm32Bootloader:
         if not read_data:
             raise CommandError("Can't read port or timeout")
         reply = read_data[0]
+        if len(read_data) == 2 and read_data[0] == self.Reply.NACK and read_data[1] == self.Reply.NACK:
+            raise CommandError("RDP is active!")
         if reply == self.Reply.NACK:
             raise CommandError("NACK " + info)
         if reply != self.Reply.ACK:

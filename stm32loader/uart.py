@@ -28,7 +28,7 @@ import serial
 
 # fixes the problem with setters method
 # https://stackoverflow.com/questions/598077/why-does-foo-setter-in-python-not-work-for-me
-class SerialConnection(object)
+class SerialConnection(object):
     """Wrap a serial.Serial connection and toggle reset and boot0."""
 
     # pylint: disable=too-many-instance-attributes

@@ -1,5 +1,5 @@
-# Author: Floris Lambrechts
-# GitHub repository: https://github.com/florisla/stm32loader
+# Author: byq77
+# GitHub repository: https://github.com/byq77/stm32loader
 #
 # This file is part of stm32loader.
 #

@@ -8,8 +8,17 @@ Most of this software is copyrighted by their respective owners:
     * License: `GPLv3`
     * GitHub: [florisa/stm32loader](https://github.com/florisla/stm32loader)
 
-Usage
------
+### Prerequisites
+
+Read [REQUIREMENTS](https://www.evernote.com/shard/s498/client/snv?noteGuid=19e2a091-b3eb-4149-b751-610999ab7ec5&noteKey=e21ccabdee185f5fdac3802928e6a262&sn=https%3A%2F%2Fwww.evernote.com%2Fshard%2Fs498%2Fsh%2F19e2a091-b3eb-4149-b751-610999ab7ec5%2Fe21ccabdee185f5fdac3802928e6a262&title=Uploading%2Bfirmware%2Bto%2BCORE2%2Busing%2BSBC) document and follow the instructions for your SBC.
+
+### Installation
+
+```bash
+$ sudo python setup.py install
+```
+
+### Usage
 
 ```
 ./stm32loader.py [-hqVewvrsRB] [-l length] [-p port] [-b baud] [-P parity] [-a address] [-g address] [-f family] [file.bin]
@@ -40,8 +49,12 @@ Usage
 
 -------
 
-To perform firmware update for your device run:
+To perform firmware update of CORE2 board run:
 
+```bash
+$ stm32loader -c <sbc_type> -e -w -v firmware.bin
 ```
-stm32loader -c <sbc_type> -e -w -v firmware.bin
-```
+where `<sbc_type>`:
+* `rpi` for Raspberry Pi
+* `tinker` for Asus Tinker Board
+* `upboard` for UpBoard
