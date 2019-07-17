@@ -40,6 +40,7 @@ $ sudo python setup.py install
 
     -s          Swap RTS and DTR: use RTS for reset and DTR for boot0
     -c          sbc used to update CORE2
+    -W          write unprotect
     -R          Make reset active high
     -B          Make boot0 active low
     -u          Readout unprotect

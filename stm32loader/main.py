@@ -48,6 +48,7 @@ class Stm32Loader:
 
     BOOLEAN_FLAG_OPTIONS = {
         "-e": "erase",
+        "-W": "write-unprotect",
         "-u": "unprotect",
         "-w": "write",
         "-v": "verify",
@@ -71,7 +72,8 @@ class Stm32Loader:
             "parity": self.PARITY["even"],
             "family": os.environ.get("STM32LOADER_FAMILY"),
             "address": 0x08000000,
-	    "core2_mode": "none",
+            "core2_mode": "none",
+            "write-unprotect": False,
             "erase": False,
             "unprotect": False,
             "write": False,
@@ -95,7 +97,7 @@ class Stm32Loader:
         """Parse the list of command-line arguments."""
         try:
             # parse command-line arguments using getopt
-            options, arguments = getopt.getopt(arguments, "hqVeuwvrsnRBP:p:b:a:l:g:f:c:", ["help"])
+            options, arguments = getopt.getopt(arguments, "hqVeuwvrsnRBPW:p:b:a:l:g:f:c:", ["help"])
         except getopt.GetoptError as err:
             # print help information and exit:
             # this prints something like "option -a not recognized"
@@ -133,8 +135,17 @@ class Stm32Loader:
                         self.configuration["parity"]
                     )
             elif self.configuration["core2_mode"] == "upboard":
-                print("Not currently supported")
-                exit(0)
+                try:
+                    from .uart_gpios import SerialConnectionUpboard
+                except ImportError as e:
+                    print("There was an error during importing SerialConnectionUpboard:" + e.message)
+                    exit(1)
+                else:
+                    serial_connection = SerialConnectionRpi(
+                        self.configuration["port"], 
+                        self.configuration["baud"], 
+                        self.configuration["parity"]
+                    )
         else:
             serial_connection = SerialConnection(
                 self.configuration["port"], 
@@ -198,6 +209,14 @@ class Stm32Loader:
                 self.debug(0, "Quit")
                 self.stm32.reset_from_flash()
                 sys.exit(1)
+        if self.configuration["write-unprotect"]:
+            try:
+                self.stm32.write_unprotect()
+            except bootloader.CommandError as e:
+                self.debug(0, "Write unprotect failed:" + e.message)
+                self.debug(0, "Quit")
+                self.stm32.reset_from_flash()
+                sys.exit(1)
         if self.configuration["erase"]:
             try:
                 self.stm32.erase_memory()
@@ -258,6 +277,7 @@ class Stm32Loader:
 
     -s          Swap RTS and DTR: use RTS for reset and DTR for boot0
     -c		    sbc used to update CORE2 (rpi | tinker | upboard)
+    -W          write unprotect
     -R          Make reset active high
     -B          Make boot0 active low
     -u          Readout unprotect
