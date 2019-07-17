@@ -97,7 +97,7 @@ class Stm32Loader:
         """Parse the list of command-line arguments."""
         try:
             # parse command-line arguments using getopt
-            options, arguments = getopt.getopt(arguments, "hqVeuwvrsnRBPW:p:b:a:l:g:f:c:", ["help"])
+            options, arguments = getopt.getopt(arguments, "hqVeuwvrsnRBWP:p:b:a:l:g:f:c:", ["help"])
         except getopt.GetoptError as err:
             # print help information and exit:
             # this prints something like "option -a not recognized"
@@ -141,7 +141,7 @@ class Stm32Loader:
                     print("There was an error during importing SerialConnectionUpboard:" + e.message)
                     exit(1)
                 else:
-                    serial_connection = SerialConnectionRpi(
+                    serial_connection = SerialConnectionUpboard(
                         self.configuration["port"], 
                         self.configuration["baud"], 
                         self.configuration["parity"]
@@ -230,6 +230,7 @@ class Stm32Loader:
                 self.stm32.reset_from_flash()
                 sys.exit(1)
         if self.configuration["write"]:
+            #TODO: erase required sectors
             self.stm32.write_memory_data(self.configuration["address"], binary_data)
         if self.configuration["verify"]:
             read_data = self.stm32.read_memory_data(

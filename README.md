@@ -14,6 +14,8 @@ Read [REQUIREMENTS](https://www.evernote.com/shard/s498/client/snv?noteGuid=19e2
 
 ### Installation
 
+In repository's root directory run:
+
 ```bash
 $ sudo python setup.py install
 ```
@@ -51,11 +53,16 @@ $ sudo python setup.py install
 -------
 
 To perform firmware update of CORE2 board run:
+* Raspberry Pi:
+    ```bash
+    $ stm32loader -c rpi -e -w -v firmware.bin
+    ```
+* Asus Tinker Board:
+    ```bash
+    $ sudo stm32loader -c tinker -e -w -v firmware.bin
+    ```
+* UpBoard:
+    ```bash
+    $ sudo stm32loader -c upboard -e -w -v firmware.bin
+    ```
 
-```bash
-$ stm32loader -c <sbc_type> -e -w -v firmware.bin
-```
-where `<sbc_type>`:
-* `rpi` for Raspberry Pi
-* `tinker` for Asus Tinker Board
-* `upboard` for UpBoard
