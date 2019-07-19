@@ -1,0 +1,2 @@
+/usr/local/lib/python2.7/dist-packages/stm32loader-0.5.0-py2.7.egg
+/usr/local/bin/stm32loader

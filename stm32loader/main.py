@@ -203,12 +203,14 @@ class Stm32Loader:
         if self.configuration["unprotect"]:
             try:
                 self.stm32.readout_unprotect()
-            except bootloader.CommandError:
+            except bootloader.CommandError as e:
                 # may be caused by readout protection
-                self.debug(0, "Erase failed -- probably due to readout protection")
+                self.debug(0, "Read unprotect failed:" + e.message)
                 self.debug(0, "Quit")
                 self.stm32.reset_from_flash()
                 sys.exit(1)
+            else:
+                self.debug(0, "read unprotect done")
         if self.configuration["write-unprotect"]:
             try:
                 self.stm32.write_unprotect()
@@ -217,6 +219,8 @@ class Stm32Loader:
                 self.debug(0, "Quit")
                 self.stm32.reset_from_flash()
                 sys.exit(1)
+            else:
+                self.debug(0, "write unprotect done")
         if self.configuration["erase"]:
             try:
                 self.stm32.erase_memory()

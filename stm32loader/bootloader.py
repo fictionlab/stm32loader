@@ -465,8 +465,13 @@ class Stm32Bootloader:
         Beware, this will erase the flash content.
         """
         self.command(self.Command.READOUT_UNPROTECT, "Readout unprotect")
-        self._wait_for_ack("0x92 readout unprotect failed")
+        previous_timeout_value = self.connection.timeout
+        self.connection.timeout = 30
         self.debug(20, "    Mass erase -- this may take a while")
+        try:
+            self._wait_for_ack("0x92 readout unprotect failed")
+        finally:
+            self.connection.timeout = previous_timeout_value
         time.sleep(20)
         self.debug(20, "    Unprotect / mass erase done")
         self.debug(20, "    Reset after automatic chip reset due to readout unprotect")
