@@ -162,6 +162,9 @@ class Stm32Loader:
         serial_connection.reset_active_high = self.configuration["reset_active_high"]
         serial_connection.boot0_active_low = self.configuration["boot0_active_low"]
 
+        serial_connection.enable_boot0(False)
+        serial_connection.enable_reset(False)
+
         show_progress = not self.configuration["hide_progress_bar"]
 
         self.stm32 = bootloader.Stm32Bootloader(
@@ -190,7 +193,7 @@ class Stm32Loader:
                 "Can't init into bootloader. Ensure that BOOT0 is enabled and reset the device.",
                 file=sys.stderr,
             )
-            self.stm32.reset_from_flash()
+            self.reset()
             sys.exit(1)
 
     def perform_commands(self):
@@ -207,7 +210,7 @@ class Stm32Loader:
                 # may be caused by readout protection
                 self.debug(0, "Read unprotect failed:" + e.message)
                 self.debug(0, "Quit")
-                self.stm32.reset_from_flash()
+                self.reset()
                 sys.exit(1)
             else:
                 self.debug(0, "read unprotect done")
@@ -217,7 +220,7 @@ class Stm32Loader:
             except bootloader.CommandError as e:
                 self.debug(0, "Write unprotect failed:" + e.message)
                 self.debug(0, "Quit")
-                self.stm32.reset_from_flash()
+                self.reset()
                 sys.exit(1)
             else:
                 self.debug(0, "write unprotect done")
@@ -231,7 +234,7 @@ class Stm32Loader:
                     "Erase failed -- probably due to readout protection\n"
                     "consider using the -u (unprotect) option." + e.message 
                 )
-                self.stm32.reset_from_flash()
+                self.reset()
                 sys.exit(1)
         if self.configuration["write"]:
             #TODO: erase required sectors
@@ -258,6 +261,8 @@ class Stm32Loader:
     def reset(self):
         """Reset the microcontroller."""
         self.stm32.reset_from_flash()
+        if( 'core2_mode' in self.configuration):
+            self.stm32.connection.clean_gpio_pins()
 
     @staticmethod
     def print_usage():

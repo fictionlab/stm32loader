@@ -57,12 +57,16 @@ class SerialConnectionRpi(object):
         try:
             import RPi.GPIO as GPIO
         except ImportError as e:
-            print("Couldn't import RPi.GPIO. Check if the RPi.GPIO is installed on your system")
+            print("Couldn't import RPi.GPIO. Check if the RPi.GPIO is installed on your system", file=stderr)
             exit(1)
-        self._gpio_instance = GPIO
-        self._gpio_instance.setmode(self._gpio_instance.BOARD)
-        self._gpio_instance.setwarnings(False)
-
+        try:
+            self._gpio_instance = GPIO
+            self._gpio_instance.setmode(self._gpio_instance.BOARD)
+            self._gpio_instance.setwarnings(False)
+        except:
+            print("Couldn't initialise the GPIO instance. Try use the script with sudo.", file=stderr)
+            exit(1)
+        
     @property
     def timeout(self):
         """Get timeout."""
@@ -118,12 +122,16 @@ class SerialConnectionRpi(object):
         if not self._gpio_boot0_init:
             self._gpio_instance.setup(self._gpio_boot0_pin, self._gpio_instance.OUT)
             self._gpio_boot0_init = True
-
+        
         if self.boot0_active_low:
         	level = (self._gpio_instance.LOW if enable else self._gpio_instance.HIGH)  # active LOW
         else:
         	level = (self._gpio_instance.HIGH if enable else self._gpio_instance.LOW)  # active HIGH
         self._gpio_instance.output(self._gpio_boot0_pin, level)
+
+    def clean_gpio_pins(self):
+        pass
+        # self._gpio_instance.cleanup()
 
 
 class SerialConnectionUpboard(object):
@@ -140,6 +148,7 @@ class SerialConnectionUpboard(object):
         self.can_toggle_boot0 = True
         self.reset_active_high = False
         self.boot0_active_low = False
+        self.GPIO_DEV = '/dev/gpiochip4'
 
         # call connect() to establish connection
         self.serial_connection = None
@@ -153,9 +162,13 @@ class SerialConnectionUpboard(object):
         except ImportError as e:
             print("Couldn't import periphery.GPIO. Check if the periphery is installed on your system")
             exit(1)
-        self._reset = GPIO(self._gpio_reset_pin, "out")
-        self._boot0 = GPIO(self._gpio_boot0_pin, "out")
-
+        try: 
+            self._reset = GPIO(self.GPIO_DEV, self._gpio_reset_pin, "out")
+            self._boot0 = GPIO(self.GPIO_DEV, self._gpio_boot0_pin, "out")
+        except:
+            print("Couldn't initialise the GPIO instance. Try use the script with sudo.", file=stderr)
+            exit(1)
+        
     @property
     def timeout(self):
         """Get timeout."""
@@ -211,3 +224,7 @@ class SerialConnectionUpboard(object):
         else:
         	level = (True if enable else False)  # active HIGH
         self._boot0.write(level)
+    
+    def clean_gpio_pins(self):
+        self._boot0.close()
+        self._reset.close()
