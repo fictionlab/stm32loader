@@ -57,14 +57,14 @@ class SerialConnectionRpi(object):
         try:
             import RPi.GPIO as GPIO
         except ImportError as e:
-            print("Couldn't import RPi.GPIO. Check if the RPi.GPIO is installed on your system", file=stderr)
+            print("Couldn't import RPi.GPIO. Check if the RPi.GPIO is installed on your system")
             exit(1)
         try:
             self._gpio_instance = GPIO
             self._gpio_instance.setmode(self._gpio_instance.BOARD)
             self._gpio_instance.setwarnings(False)
         except:
-            print("Couldn't initialise the GPIO instance. Try use the script with sudo.", file=stderr)
+            print("Couldn't initialise the GPIO instance. Try use the script with sudo.")
             exit(1)
         
     @property
@@ -130,8 +130,8 @@ class SerialConnectionRpi(object):
         self._gpio_instance.output(self._gpio_boot0_pin, level)
 
     def clean_gpio_pins(self):
-        pass
         # self._gpio_instance.cleanup()
+        pass
 
 
 class SerialConnectionUpboard(object):
@@ -163,10 +163,10 @@ class SerialConnectionUpboard(object):
             print("Couldn't import periphery.GPIO. Check if the periphery is installed on your system")
             exit(1)
         try: 
-            self._reset = GPIO(self.GPIO_DEV, self._gpio_reset_pin, "out")
-            self._boot0 = GPIO(self.GPIO_DEV, self._gpio_boot0_pin, "out")
+            self._reset = GPIO(self._gpio_reset_pin, "out")
+            self._boot0 = GPIO(self._gpio_boot0_pin, "out")
         except:
-            print("Couldn't initialise the GPIO instance. Try use the script with sudo.", file=stderr)
+            print("Couldn't initialise the GPIO instance. Try use the script with sudo.")
             exit(1)
         
     @property
@@ -226,5 +226,6 @@ class SerialConnectionUpboard(object):
         self._boot0.write(level)
     
     def clean_gpio_pins(self):
-        self._boot0.close()
-        self._reset.close()
+        # self._boot0.close()
+        # self._reset.close()
+        pass

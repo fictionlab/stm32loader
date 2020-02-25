@@ -72,7 +72,7 @@ class Stm32Loader:
             "parity": self.PARITY["even"],
             "family": os.environ.get("STM32LOADER_FAMILY"),
             "address": 0x08000000,
-            "core2_mode": "none",
+            "core2_mode": None,
             "write-unprotect": False,
             "erase": False,
             "unprotect": False,
@@ -121,8 +121,8 @@ class Stm32Loader:
 
     def connect(self):
         """Connect to the RS-232 serial port."""
-        if self.configuration["core2_mode"] != "none":
-            if self.configuration["core2_mode"] == "rpi" or self.configuration["core2_mode"] == "tinker":
+        if self.configuration["core2_mode"] is not None:
+            if self.configuration["core2_mode"] in [ "rpi", 'tinker']:
                 try:
                     from .uart_gpios import SerialConnectionRpi
                 except ImportError as e:
@@ -261,7 +261,7 @@ class Stm32Loader:
     def reset(self):
         """Reset the microcontroller."""
         self.stm32.reset_from_flash()
-        if( 'core2_mode' in self.configuration):
+        if( self.configuration['core2_mode'] is not None and self.configuration['core2_mode'] in ['rpi','tinker','upboard']):
             self.stm32.connection.clean_gpio_pins()
 
     @staticmethod
