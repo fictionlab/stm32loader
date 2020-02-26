@@ -7,7 +7,7 @@
 # the terms of the GNU General Public License as published by the Free
 # Software Foundation; either version 3, or (at your option) any later
 # version.
-# 
+#
 # stm32loader is distributed in the hope that it will be useful, but
 # WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 # or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
@@ -30,6 +30,8 @@ import sys
 
 # fixes the problem with setters method
 # https://stackoverflow.com/questions/598077/why-does-foo-setter-in-python-not-work-for-me
+
+
 class SerialConnectionRpi(object):
     """Wrap a serial.Serial connection and toggle reset and boot0."""
 
@@ -56,17 +58,17 @@ class SerialConnectionRpi(object):
 
         try:
             import RPi.GPIO as GPIO
-        except ImportError as e:
-            print("Couldn't import RPi.GPIO. Check if the RPi.GPIO is installed on your system")
+        except ImportError:
+            print("Couldn't import RPi.GPIO. Check if the RPi.GPIO is installed on your system", file=sys.stderr)
             exit(1)
         try:
             self._gpio_instance = GPIO
             self._gpio_instance.setmode(self._gpio_instance.BOARD)
             self._gpio_instance.setwarnings(False)
-        except:
-            print("Couldn't initialise the GPIO instance. Try use the script with sudo.")
+        except RuntimeError:
+            print("Couldn't initialise the GPIO instance. Try use the script with sudo.", file=sys.stderr)
             exit(1)
-        
+
     @property
     def timeout(self):
         """Get timeout."""
@@ -111,9 +113,9 @@ class SerialConnectionRpi(object):
             self._gpio_reset_init = True
 
         if self.reset_active_high:
-        	level = (self._gpio_instance.HIGH if enable else self._gpio_instance.LOW)  # active HIGH
+            level = (self._gpio_instance.HIGH if enable else self._gpio_instance.LOW)  # active HIGH
         else:
-        	level = (self._gpio_instance.LOW if enable else self._gpio_instance.HIGH)  # active LOW
+            level = (self._gpio_instance.LOW if enable else self._gpio_instance.HIGH)  # active LOW
         self._gpio_instance.output(self._gpio_reset_pin, level)
 
     def enable_boot0(self, enable=True):
@@ -122,7 +124,7 @@ class SerialConnectionRpi(object):
         if not self._gpio_boot0_init:
             self._gpio_instance.setup(self._gpio_boot0_pin, self._gpio_instance.OUT)
             self._gpio_boot0_init = True
-        
+
         if self.boot0_active_low:
         	level = (self._gpio_instance.LOW if enable else self._gpio_instance.HIGH)  # active LOW
         else:
@@ -130,8 +132,7 @@ class SerialConnectionRpi(object):
         self._gpio_instance.output(self._gpio_boot0_pin, level)
 
     def clean_gpio_pins(self):
-        # self._gpio_instance.cleanup()
-        pass
+        self._gpio_instance.cleanup()
 
 
 class SerialConnectionUpboard(object):
@@ -159,16 +160,16 @@ class SerialConnectionUpboard(object):
 
         try:
             from periphery import GPIO
-        except ImportError as e:
-            print("Couldn't import periphery.GPIO. Check if the periphery is installed on your system")
+        except ImportError:
+            print("Couldn't import periphery.GPIO. Check if the periphery is installed on your system", file=sys.stderr)
             exit(1)
-        try: 
+        try:
             self._reset = GPIO(self._gpio_reset_pin, "out")
             self._boot0 = GPIO(self._gpio_boot0_pin, "out")
-        except:
-            print("Couldn't initialise the GPIO instance. Try use the script with sudo.")
+        except RuntimeError:
+            print("Couldn't initialise the GPIO instance. Try use the script with sudo.", file=sys.stderr)
             exit(1)
-        
+
     @property
     def timeout(self):
         """Get timeout."""
@@ -224,8 +225,7 @@ class SerialConnectionUpboard(object):
         else:
         	level = (True if enable else False)  # active HIGH
         self._boot0.write(level)
-    
+
     def clean_gpio_pins(self):
-        # self._boot0.close()
-        # self._reset.close()
-        pass
+        self._boot0.close()
+        self._reset.close()

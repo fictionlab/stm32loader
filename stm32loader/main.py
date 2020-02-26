@@ -122,11 +122,11 @@ class Stm32Loader:
     def connect(self):
         """Connect to the RS-232 serial port."""
         if self.configuration["core2_mode"] is not None:
-            if self.configuration["core2_mode"] in [ "rpi", 'tinker']:
+            if self.configuration["core2_mode"] in ["rpi", 'tinker']:
                 try:
                     from .uart_gpios import SerialConnectionRpi
                 except ImportError as e:
-                    print("There was an error during importing SerialConnectionRpi:" + e.message)
+                    print("There was an error during importing SerialConnectionRpi:", str(e), file=sys.stderr)
                     exit(1)
                 else:
                     serial_connection = SerialConnectionRpi(
@@ -138,7 +138,7 @@ class Stm32Loader:
                 try:
                     from .uart_gpios import SerialConnectionUpboard
                 except ImportError as e:
-                    print("There was an error during importing SerialConnectionUpboard:" + e.message)
+                    print("There was an error during importing SerialConnectionUpboard:", str(e), file=sys.stderr)
                     exit(1)
                 else:
                     serial_connection = SerialConnectionUpboard(
@@ -208,8 +208,9 @@ class Stm32Loader:
                 self.stm32.readout_unprotect()
             except bootloader.CommandError as e:
                 # may be caused by readout protection
-                self.debug(0, "Read unprotect failed:" + e.message)
-                self.debug(0, "Quit")
+                self.debug(0, "Read unprotect failed:")
+                self.debug(0, str(e))
+                # self.debug(0, "Quit")
                 self.reset()
                 sys.exit(1)
             else:
@@ -218,8 +219,9 @@ class Stm32Loader:
             try:
                 self.stm32.write_unprotect()
             except bootloader.CommandError as e:
-                self.debug(0, "Write unprotect failed:" + e.message)
-                self.debug(0, "Quit")
+                self.debug(0, "Write unprotect failed:")
+                self.debug(0, str(e))
+                # self.debug(0, "Quit")
                 self.reset()
                 sys.exit(1)
             else:
@@ -232,8 +234,9 @@ class Stm32Loader:
                 self.debug(
                     0,
                     "Erase failed -- probably due to readout protection\n"
-                    "consider using the -u (unprotect) option." + e.message 
+                    "consider using the -u (unprotect) option."
                 )
+                self.debug(0, str(e))
                 self.reset()
                 sys.exit(1)
         if self.configuration["write"]:
@@ -247,7 +250,7 @@ class Stm32Loader:
                 bootloader.Stm32Bootloader.verify_data(read_data, binary_data)
                 print("Verification OK")
             except bootloader.DataMismatchError as e:
-                print("Verification FAILED: %s" % e, file=sys.stdout)
+                print("Verification FAILED: %s" % e)
                 sys.exit(1)
         if not self.configuration["write"] and self.configuration["read"]:
             read_data = self.stm32.read_memory_data(
@@ -318,7 +321,8 @@ class Stm32Loader:
                 try:
                     device_uid, flash_size = self.stm32.get_flash_size_and_uid_f4()
                 except bootloader.CommandError as e:
-                    self.debug(0,"Something was wrong with reading chip family data: " + e.message)
+                    self.debug(0,"Something was wrong with reading chip family data: ")
+                    self.debug(0, str(e))
                 else:
                     device_uid_string = self.stm32.format_uid(device_uid)
                     self.debug(0, "Device UID: %s" % device_uid_string)
@@ -328,7 +332,8 @@ class Stm32Loader:
                     flash_size = self.stm32.get_flash_size(family)
                     device_uid = self.stm32.get_uid(family)
                 except bootloader.CommandError as e:
-                    self.debug(0,"Something was wrong with reading chip family data: " + e.message)
+                    self.debug(0,"Something was wrong with reading chip family data: ")
+                    self.debug(0, str(e))
                 else:
                     device_uid_string = self.stm32.format_uid(device_uid)
                     self.debug(0, "Device UID: %s" % device_uid_string)

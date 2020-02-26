@@ -214,6 +214,7 @@ class Stm32Bootloader:
     def reset_from_flash(self):
         """Reset the MCU with boot0 disabled."""
         self._enable_boot0(False)
+        time.sleep(0.05)
         self._reset()
 
     def command(self, command, description):
