@@ -161,9 +161,13 @@ class Stm32Loader:
         serial_connection.swap_rts_dtr = self.configuration["swap_rts_dtr"]
         serial_connection.reset_active_high = self.configuration["reset_active_high"]
         serial_connection.boot0_active_low = self.configuration["boot0_active_low"]
-
-        serial_connection.enable_boot0(False)
-        serial_connection.enable_reset(False)
+        
+        try:
+            serial_connection.enable_boot0(False)
+            serial_connection.enable_reset(False)
+        except OSError:
+            print("Couldn't set boot0 and reset. Try use with sudo.", file=sys.stderr)
+            exit(1)
 
         show_progress = not self.configuration["hide_progress_bar"]
 

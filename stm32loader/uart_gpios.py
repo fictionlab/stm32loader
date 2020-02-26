@@ -65,8 +65,8 @@ class SerialConnectionRpi(object):
             self._gpio_instance = GPIO
             self._gpio_instance.setmode(self._gpio_instance.BOARD)
             self._gpio_instance.setwarnings(False)
-        except RuntimeError:
-            print("Couldn't initialise the GPIO instance. Try use the script with sudo.", file=sys.stderr)
+        except OSError:
+            print("Couldn't initialise the RPi.GPIO instance.", file=sys.stderr)
             exit(1)
 
     @property
@@ -132,7 +132,8 @@ class SerialConnectionRpi(object):
         self._gpio_instance.output(self._gpio_boot0_pin, level)
 
     def clean_gpio_pins(self):
-        self._gpio_instance.cleanup()
+        # self._gpio_instance.cleanup()
+        pass
 
 
 class SerialConnectionUpboard(object):
@@ -166,8 +167,8 @@ class SerialConnectionUpboard(object):
         try:
             self._reset = GPIO(self._gpio_reset_pin, "out")
             self._boot0 = GPIO(self._gpio_boot0_pin, "out")
-        except RuntimeError:
-            print("Couldn't initialise the GPIO instance. Try use the script with sudo.", file=sys.stderr)
+        except OSError:
+            print("Couldn't initialise the periphery.GPIO instances. Try use the script with sudo.", file=sys.stderr)
             exit(1)
 
     @property
