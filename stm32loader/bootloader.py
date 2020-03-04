@@ -593,16 +593,21 @@ class Stm32Bootloader:
     def _wait_for_ack(self, info=""):
         """Read a byte and raise CommandError if it's not ACK."""
         read_data = bytearray(self.connection.read())
-        if not read_data:
+        if not read_data: # empty string
             raise CommandError("Can't read port or timeout")
+
         reply = read_data[0]
-        if len(read_data) == 2 and read_data[0] == self.Reply.NACK and read_data[1] == self.Reply.NACK:
-            raise CommandError("RDP is active!")
+        self.debug(10, "*** Read data: 0x%02X" % reply)
+
         if reply == self.Reply.NACK:
             raise CommandError("NACK " + info)
-        if reply != self.Reply.ACK:
-            raise CommandError("Unknown response. " + info + ": " + hex(reply))
-
+        if reply not in (self.Reply.ACK, self.Reply.NACK):
+            # try to read additional byte in case it was just a input noise
+            read_data = bytearray(self.connection.read())
+            if not read_data or read_data[0] != self.Reply.ACK:
+                raise CommandError("Unknown response. " + info)
+        # if len(read_data) == 2 and read_data[0] == self.Reply.NACK and read_data[1] == self.Reply.NACK:
+        #     raise CommandError("RDP is active!")
         return 1
 
     @staticmethod

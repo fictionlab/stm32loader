@@ -87,6 +87,7 @@ class Stm32Loader:
             "data_file": None,
         }
         self.verbosity = DEFAULT_VERBOSITY
+        self.max_communication_attempts = 5
 
     def debug(self, level, message):
         """Log a message to stderror if its level is low enough."""
@@ -101,7 +102,7 @@ class Stm32Loader:
         except getopt.GetoptError as err:
             # print help information and exit:
             # this prints something like "option -a not recognized"
-            print(str(err))
+            self.debug(0, str(err))
             self.print_usage()
             sys.exit(2)
 
@@ -112,10 +113,9 @@ class Stm32Loader:
         self._parse_option_flags(options)
 
         if not self.configuration["port"]:
-            print(
+            self.debug(0,
                 "No serial port configured. Supply the -p option "
-                "or configure environment variable STM32LOADER_SERIAL_PORT.",
-                file=sys.stderr,
+                "or configure environment variable STM32LOADER_SERIAL_PORT."
             )
             sys.exit(3)
 
@@ -126,32 +126,28 @@ class Stm32Loader:
                 try:
                     from .uart_gpios import SerialConnectionRpi
                 except ImportError as e:
-                    print("There was an error during importing SerialConnectionRpi:", str(e), file=sys.stderr)
-                    exit(1)
+                    self.debug(0, "There was an error during importing SerialConnectionRpi:" + str(e))
+                    sys.exit(4)
                 else:
                     serial_connection = SerialConnectionRpi(
-                        self.configuration["port"], 
-                        self.configuration["baud"], 
-                        self.configuration["parity"]
+                        self.configuration["port"], self.configuration["baud"], self.configuration["parity"]
                     )
             elif self.configuration["core2_mode"] == "upboard":
                 try:
                     from .uart_gpios import SerialConnectionUpboard
                 except ImportError as e:
-                    print("There was an error during importing SerialConnectionUpboard:", str(e), file=sys.stderr)
-                    exit(1)
+                    self.debug(0, "There was an error during importing SerialConnectionUpboard:" + str(e))
+                    sys.exit(4)
                 else:
                     serial_connection = SerialConnectionUpboard(
-                        self.configuration["port"], 
-                        self.configuration["baud"], 
-                        self.configuration["parity"]
+                        self.configuration["port"], self.configuration["baud"], self.configuration["parity"]
                     )
         else:
             serial_connection = SerialConnection(
-                self.configuration["port"], 
-                self.configuration["baud"], 
+                self.configuration["port"],
+                self.configuration["baud"],
                 self.configuration["parity"]
-            )            
+            )
         self.debug(
             10,
             "Open port %(port)s, baud %(baud)d"
@@ -165,9 +161,9 @@ class Stm32Loader:
         try:
             serial_connection.enable_boot0(False)
             serial_connection.enable_reset(False)
-        except OSError:
-            print("Couldn't set boot0 and reset. Try use with sudo.", file=sys.stderr)
-            exit(1)
+        except IOError:
+            self.debug(0, "Permission issue: couldn't set boot0 and reset pins. Try use with sudo.")
+            sys.exit(5)
 
         show_progress = not self.configuration["hide_progress_bar"]
 
@@ -178,27 +174,34 @@ class Stm32Loader:
         try:
             serial_connection.connect()
         except IOError as e:
-            print(str(e) + "\n", file=sys.stderr)
-            print(
+            self.debug(0,str(e) + "\n")
+            self.debug(0,
                 "Is the device connected and powered correctly?\n"
                 "Please use the -p option to select the correct serial port. Examples:\n"
                 "  -p COM3\n"
                 "  -p /dev/ttyS0\n"
                 "  -p /dev/ttyUSB0\n"
-                "  -p /dev/tty.usbserial-ftCYPMYJ\n",
-                file=sys.stderr,
+                "  -p /dev/tty.usbserial-ftCYPMYJ\n"
             )
-            exit(1)
+            sys.exit(6)
 
-        try:
-            self.stm32.reset_from_system_memory()
-        except bootloader.CommandError:
-            print(
-                "Can't init into bootloader. Ensure that BOOT0 is enabled and reset the device.",
-                file=sys.stderr,
-            )
-            self.reset()
-            sys.exit(1)
+        for i in range(1, self.max_communication_attempts + 1):
+            try:
+                self.stm32.reset_from_system_memory()
+            except bootloader.CommandError as e:
+                self.debug(0,
+                    "Attempt {} Can't init into bootloader: {}".format(i, e)
+                )
+            else:
+                self.debug(10,"Attempt {} was successfull.".format(i))
+                break
+            finally:
+                if(i == self.max_communication_attempts):
+                    self.debug(0,"Communication failure. Quitting...")
+                    self.reset()
+                    sys.exit(7)
+        self.debug(10, "Successfully communicated with bootloader.")
+
 
     def perform_commands(self):
         """Run all operations as defined by the configuration."""
@@ -350,8 +353,8 @@ class Stm32Loader:
                 self.verbosity = 10
             elif option == "-c":
                 if value not in self.SBC_TYPES:
-                    print("Incorrect SBC type!")
-                    exit(1)
+                    self.debug(0, "Incorrect SBC type!")
+                    sys.exit(1)
                 self.configuration["core2_mode"] = value
                 if value == 'rpi':
                     self.configuration["port"] = '/dev/serial0'                
