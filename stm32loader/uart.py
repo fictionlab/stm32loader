@@ -79,6 +79,13 @@ class SerialConnection(object):
             # set a timeout value, None for waiting forever
             timeout=self._timeout,
         )
+        if not self.serial_connection.is_open:
+            self.serial_connection.open()
+        if not self.serial_connection.is_open:
+            raise IOError('Cannot open port "%s"' % self.serial_port)
+
+    def clear_input_buffer(self):
+        self.serial_connection.reset_input_buffer()
 
     def write(self, *args, **kwargs):
         """Write the given data to the serial connection."""

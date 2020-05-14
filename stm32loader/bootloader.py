@@ -207,8 +207,9 @@ class Stm32Bootloader:
     def reset_from_system_memory(self):
         """Reset the MCU with boot0 enabled to enter the bootloader."""
         self._enable_boot0(True)
-        time.sleep(0.05)
+        # time.sleep(0.05)
         self._reset()
+        self.connection.clear_input_buffer()
         return self.write_and_ack("Synchro", self.Command.SYNCHRONIZE)
 
     def reset_from_flash(self):
